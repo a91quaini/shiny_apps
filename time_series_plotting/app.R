@@ -7,7 +7,7 @@ tagging_data <- readr::read_csv("data/tagging_data.csv")
 source("global.R")
 
 ui <- fluidPage(
-  time_series_plotting_ui("plot_this", "Module title")
+  time_series_plotting_ui("plot_this", "Time series plotting")
 )
   
 server <- function(input, output) {
@@ -19,7 +19,7 @@ server <- function(input, output) {
     tagging_data
   })
   
-  callModule(time_series_plotting, "plot_this", time_series_data_reactive, tagging_data_reactive)
+  callModule(time_series_plotting, "plot_this", time_series_data_reactive, tagging_data_reactive, NULL)
 }
 
 shinyApp(ui, server)
