@@ -1,3 +1,6 @@
+time_series_data <- readr::read_csv("data/time_series_data.csv")
+tagging_data <- readr::read_csv("data/tagging_data.csv")
+
 #### UI
 #' @title Cross-sectional plotting (UI)
 #' @description Plot the cross-section of a given parameter in a panel of data. Compare over time.
@@ -59,7 +62,7 @@ cross_sectional_plotting_ui <- function(id, module_header_text){
         tags$br(),
 
         # textOutput of selected series
-        helpText("Brushed series"),
+        uiOutput(ns("help_brushed_series")),
         verbatimTextOutput(ns("brushed_series"))
       ),
 
@@ -92,16 +95,19 @@ cross_sectional_plotting_ui <- function(id, module_header_text){
 #' Picking the \code{selections} highlights points for entities belonging to that selection in all plots.
 #' @export
 
+#### brushing per stat::qq non operativo
+
+
 ggplot_function <- function(dataframe, input_date, input_value_type_x, input_tags, id_brushed) {
   data <- dataframe %>%
-    dplyr::filter(date %in% as.Date(input_date))
+    dplyr::filter(date %in% base::as.Date(input_date))
   
     if(!is.null(input_tags)) {
-      ggplot2::ggplot(data, aes(x = value_type_x, y = value_types_y, color = tag)) +
+      ggplot2::ggplot(data, ggplot2::aes(x = value_type_x, y = value_types_y, color = tag)) +
         ggplot2::geom_point() +
         ggplot2::geom_point(data = data %>% dplyr::filter(id %in% id_brushed), size = 4, shape= 2)
     } else {
-      ggplot2::ggplot(data, aes(x = value_type_x, y = value_types_y)) +
+      ggplot2::ggplot(data, ggplot2::aes(x = value_type_x, y = value_types_y)) +
         ggplot2::geom_point() +
         ggplot2::geom_point(data = data %>% dplyr::filter(id %in% id_brushed), size = 4, shape = 2)
     }
@@ -109,14 +115,14 @@ ggplot_function <- function(dataframe, input_date, input_value_type_x, input_tag
 
 ggplot_qq <- function(dataframe, input_date, input_tags, id_brushed) {
   data <- dataframe %>%
-    dplyr::filter(date %in% as.Date(input_date))
+    dplyr::filter(date %in% base::as.Date(input_date))
   
   if(!is.null(input_tags)) {
-    ggplot2::ggplot(data, aes(sample = value, color = tag)) +
+    ggplot2::ggplot(data, ggplot2::aes(sample = value, color = tag)) +
       ggplot2::stat_qq() +
       ggplot2::stat_qq(data = data %>% dplyr::filter(id %in% id_brushed), size = 4, shape= 2)
   } else {
-    ggplot2::ggplot(data, aes(sample = value)) +
+    ggplot2::ggplot(data, ggplot2::aes(sample = value)) +
       ggplot2::stat_qq() +
       ggplot2::stat_qq(data = data %>% dplyr::filter(id %in% id_brushed), size = 4, shape = 2)
   }
@@ -225,17 +231,17 @@ cross_sectional_plotting <- function(input, output, session, time_series_data, t
   })
   
   # reactive dataframe for plots
-  plot1_dataframe <- reactive({
+  plot_dataframe <- reactive({
     req(input$value_type_x)
     req(input$value_types_y)
     req(input$frequency)
-    validate(need(input$dates_input, "Date"))
+    req(input$dates_input)
     
     intermediate_dataframe <- if(input$value_type_x != "ranking") {
       time_series_data() %>%
         dplyr::filter(value_type %in% c(input$value_type_x, input$value_types_y),
                       frequency %in% input$frequency,
-                      date %in% as.Date(input$dates_input)) %>%
+                      date %in% base::as.Date(input$dates_input)) %>%
         tidyr::spread(key = value_type, value = value) %>%
         tidyr::gather_(gather_cols = input$value_type_x, key_col = "useless_x", value_col = "value_type_x") %>%
         tidyr::gather_(gather_cols = input$value_types_y, key_col = "useless_y", value_col = "value_types_y")
@@ -243,7 +249,7 @@ cross_sectional_plotting <- function(input, output, session, time_series_data, t
       time_series_data() %>%
         dplyr::filter(value_type %in% input$value_types_y,
                       frequency %in% input$frequency,
-                      date %in% as.Date(input$dates_input))
+                      date %in% base::as.Date(input$dates_input))
     }
     
     if(!is.null(input$tags)) {
@@ -257,40 +263,59 @@ cross_sectional_plotting <- function(input, output, session, time_series_data, t
   
   # plot at date 1
   output$cs_plot_1 <- renderPlot({
-    if(input$value_type_x != "ranking") {
-      ggplot_function(plot1_dataframe(), input$dates_input[1], input$value_type_x, input$tags, NULL)
-    } else {
-      ggplot_qq(plot1_dataframe(), input$dates_input[1], input$tags, NULL)
-    }
+    validate(need(input$dates_input, "Date"))
     
+    if(input$value_type_x != "ranking") {
+      ggplot_function(plot_dataframe(), input$dates_input[1], input$value_type_x, input$tags, NULL)
+    } else {
+      ggplot_qq(plot_dataframe(), input$dates_input[1], input$tags, NULL)
+    }
+  })
+  
+  brushed_data <- reactive({
+    brushedPoints(plot_dataframe() %>% 
+                    dplyr::filter(date %in% base::as.Date(input$dates_input[1])), input$plot_brush)
   })
   
   # vector of brushed ids
   id_brushed <- reactive({
-    req(plot1_dataframe())
+    req(plot_dataframe())
     
-    brushedPoints(plot1_dataframe() %>% 
-                    dplyr::filter(date %in% as.Date(input$dates_input[1])), input$plot_brush) %>%
+    brushed_data() %>%
       dplyr::select(id) %>% dplyr::distinct() %>% .[[1]]
+  })
+  
+  # help text brushed series
+  output$help_brushed_series <- renderUI({
+    req(input$plot_brush)
+    helpText("Selected series")
+  })
+  
+  # text brushed series
+  output$brushed_series <- renderText({
+    req(input$plot_brush)
+    base::paste0(brushed_data() %>% select(name) %>% .[[1]])
   })
   
   # plot at date 2
   output$cs_plot_2 <- renderPlot({
-    validate(need(input$dates_input[2], "Date"))
+    req(plot_dataframe())
+    validate(need(input$dates_input[2], "Date 2"))
     if(input$value_type_x != "ranking") {
-      ggplot_function(plot1_dataframe(), input$dates_input[2], input$value_type_x, input$tags, id_brushed())
+      ggplot_function(plot_dataframe(), input$dates_input[2], input$value_type_x, input$tags, id_brushed())
     } else {
-      ggplot_qq(plot1_dataframe(), input$dates_input[2], input$tags, id_brushed())
+      ggplot_qq(plot_dataframe(), input$dates_input[2], input$tags, id_brushed())
     }
   })
   
   # plot at date 3
   output$cs_plot_3 <- renderPlot({
-    validate(need(input$dates_input[3], "Date"))
+    req(plot_dataframe())
+    validate(need(input$dates_input[3], "Date 3"))
     if(input$value_type_x != "ranking") {
-      ggplot_function(plot1_dataframe(), input$dates_input[3], input$value_type_x, input$tags, id_brushed())
+      ggplot_function(plot_dataframe(), input$dates_input[3], input$value_type_x, input$tags, id_brushed())
     } else {
-      ggplot_qq(plot1_dataframe(), input$dates_input[3], input$tags, id_brushed())
+      ggplot_qq(plot_dataframe(), input$dates_input[3], input$tags, id_brushed())
     }
   })
   
