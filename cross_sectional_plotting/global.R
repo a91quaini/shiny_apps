@@ -32,31 +32,31 @@ cross_sectional_plotting_ui <- function(id, module_header_text){
   ns <- NS(id)
   
   fluidRow(
-    tags$h1(module_header_text),
+    tags$h1(gettext(module_header_text)),
 
     sidebarLayout(
       sidebarPanel(
         # selectizeInput (single) value type for x
         selectizeInput(ns("value_type_x"), choices = NULL,
-                       label = "Value type for x-axis"),
+                       label = gettext("Value type for x-axis")),
 
         # selectizeInput (multiple) value type for y
         selectizeInput(ns("value_types_y"), choices = NULL,
-                     label = "(multiple) value types for y-axis",
+                     label = gettext("(multiple) value types for y-axis"),
                      multiple = TRUE),
 
         # selectizeInput (single) frequency
         selectizeInput(ns("frequency"), choices = NULL,
-                       label = "Frequency"),
+                       label = gettext("Frequency")),
 
         # selectizeInput tags
         selectizeInput(ns("tags"), choices = NULL,
-                       label = "Tags",
+                       label = gettext("Tags"),
                        multiple = TRUE),
 
         # dateInput
         selectizeInput(ns("dates_input"), choices = NULL,
-                       label = "(multiple) dates for plots",
+                       label = gettext("(multiple) dates for plots"),
                        multiple = TRUE, options = list(maxItems = 3)),
 
         tags$br(),
@@ -135,7 +135,7 @@ cross_sectional_plotting <- function(input, output, session, time_series_data, t
   
   # vector to choose values for x from
   value_type_vector <- reactive({
-    validate(need(time_series_data(), "Time series data"))
+    validate(need(time_series_data(), gettext("Time series data")))
     time_series_data() %>%
       dplyr::select(value_type) %>% dplyr::distinct() %>% .[[1]]
   })
@@ -263,7 +263,7 @@ cross_sectional_plotting <- function(input, output, session, time_series_data, t
   
   # plot at date 1
   output$cs_plot_1 <- renderPlot({
-    validate(need(input$dates_input, "Date"))
+    validate(need(input$dates_input, gettext("Date")))
     
     if(input$value_type_x != "ranking") {
       ggplot_function(plot_dataframe(), input$dates_input[1], input$value_type_x, input$tags, NULL)
@@ -288,7 +288,7 @@ cross_sectional_plotting <- function(input, output, session, time_series_data, t
   # help text brushed series
   output$help_brushed_series <- renderUI({
     req(input$plot_brush)
-    helpText("Selected series")
+    helpText(gettext("Selected series"))
   })
   
   # text brushed series
@@ -300,7 +300,7 @@ cross_sectional_plotting <- function(input, output, session, time_series_data, t
   # plot at date 2
   output$cs_plot_2 <- renderPlot({
     req(plot_dataframe())
-    validate(need(input$dates_input[2], "Date 2"))
+    validate(need(input$dates_input[2], gettext("Date 2")))
     if(input$value_type_x != "ranking") {
       ggplot_function(plot_dataframe(), input$dates_input[2], input$value_type_x, input$tags, id_brushed())
     } else {
@@ -311,7 +311,7 @@ cross_sectional_plotting <- function(input, output, session, time_series_data, t
   # plot at date 3
   output$cs_plot_3 <- renderPlot({
     req(plot_dataframe())
-    validate(need(input$dates_input[3], "Date 3"))
+    validate(need(input$dates_input[3], gettext("Date 3")))
     if(input$value_type_x != "ranking") {
       ggplot_function(plot_dataframe(), input$dates_input[3], input$value_type_x, input$tags, id_brushed())
     } else {

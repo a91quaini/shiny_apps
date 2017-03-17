@@ -61,31 +61,31 @@ time_series_plotting_ui <- function(id, module_header_text="default text"){
     
     # plot area
     fluidRow(
-      tags$h1(module_header_text),
+      tags$h1(gettext(module_header_text)),
       
       sidebarLayout(
         sidebarPanel(
           # selectizeInput tag
           selectizeInput(ns("tags"), choices = NULL,
-                         label = "Choose tags", multiple = TRUE),
+                         label = gettext("Choose tags"), multiple = TRUE),
           
           # checkBox highlight
           uiOutput(ns("highlight")),
           
           # selectizeInput value type
           selectizeInput(ns("value_type_1"), choices = NULL,
-                         label = "Choose value type"),
+                         label = gettext("Choose value type")),
           
           # selectizeInput value type
           selectizeInput(ns("value_type_2"), choices = NULL,
-                         label = "Choose value type"),
+                         label = gettext("Choose value type")),
           
           # selectizeInput frequency
           selectizeInput(ns("frequency"), choices = NULL,
-                         label = "Choose frequency"),
+                         label = gettext("Choose frequency")),
           
           # select date range
-          dateRangeInput(ns("date_range"), "Choose date range")
+          dateRangeInput(ns("date_range"), gettext("Choose date range"))
         ),
         
         mainPanel(
@@ -175,7 +175,7 @@ time_series_plotting <- function(input
   ##############
   
   value_type_vector <- reactive({
-    validate(need(time_series_data(), "Time series data"))
+    validate(need(time_series_data(), gettext("Time series data")))
     time_series_data() %>%
       dplyr::select(value_type) %>% dplyr::distinct() %>% .[[1]]
   })
@@ -211,7 +211,7 @@ time_series_plotting <- function(input
   
   # select value type 2 (from all but value type 1)
   value_type_2_vector <- reactive({
-    validate(need(input$value_type_1, "Value type 1"))
+    validate(need(input$value_type_1, gettext("Value type 1")))
     value_type_vector()[value_type_vector() != input$value_type_1]
   })
   
@@ -271,15 +271,15 @@ time_series_plotting <- function(input
   output$highlight <- renderUI({
     req(input$tags)
     
-    checkboxInput(ns("highlighter"), "Highlight series")
+    checkboxInput(ns("highlighter"), gettext("Highlight series"))
   })
   
   # reactive (to all previous choices) dataframe for plotting
   plot_dataframe <- reactive({
-    validate(need(input$tags, "Tags"))
-    validate(need(input$value_type_1, "Value type"))
-    validate(need(input$date_range, "Date range"))
-    validate(need(input$frequency, "Frequency"))
+    validate(need(input$tags, gettext("Tags")))
+    validate(need(input$value_type_1, gettext("Value type")))
+    validate(need(input$date_range, gettext("Date range")))
+    validate(need(input$frequency, gettext("Frequency")))
     
     
     # ids corresponding to chosen tags
@@ -314,7 +314,7 @@ time_series_plotting <- function(input
   # textOutput selected series + help text
   output$help_clicked_series <- renderUI({
     req(name_vector())
-    helpText("Selected series")
+    helpText(gettext("Selected series"))
   })
   
   # textOutput clicked series
@@ -326,13 +326,13 @@ time_series_plotting <- function(input
   output$show_table <- renderUI({
     req(name_vector())
     
-    checkboxInput(ns("table_button"), "Show data table", value = TRUE)
+    checkboxInput(ns("table_button"), gettext("Show data table"), value = TRUE)
   })
   
   # data table dataframe
   table_dataframe <- reactive({
     req(name_vector())
-    validate(need(input$table_button, "Table button"))
+    validate(need(input$table_button, gettext("Table button")))
     
     plot_dataframe() %>%
       dplyr::filter(name %in% name_vector()) %>%
