@@ -217,20 +217,26 @@ time_series_plotting <- function(input
   
   # if there is no selection, set NULL. If there is a selection, keep the selection except if it already 
   # present in value type 1
-  value_type_2_selected <- reactive({
-    req(value_type_2_vector)
-    if(isTruthy(input$value_type_2) & (input$value_type_2 %in% value_type_2_vector())) {
+  # value_type_2_selected <- reactive({
+  #   req(value_type_2_vector())
+  #   if(isTruthy(input$value_type_2) & (input$value_type_2 %in% value_type_2_vector())) {
+  #     input$value_type_2
+  #   } else if (isTruthy(input$value_type_2) & !(input$value_type_2 %in% value_type_2_vector())) {
+  #     value_type_2_vector()[1]
+  #   } else { NULL }
+  # })
+  
+  # selectize value type 2
+  observeEvent(input$value_type_1, {
+    value_type_2_selected <- if(isTruthy(input$value_type_2) & (input$value_type_2 %in% value_type_2_vector())) {
       input$value_type_2
     } else if (isTruthy(input$value_type_2) & !(input$value_type_2 %in% value_type_2_vector())) {
       value_type_2_vector()[1]
     } else { NULL }
-  })
-  
-  # selectize value type 2
-  observeEvent(input$value_type_1, {
+    
     updateSelectizeInput(session, "value_type_2",
                          choices = value_type_2_vector(),
-                         selected = value_type_2_selected(),
+                         selected = value_type_2_selected,
                          server = TRUE)
   })
   
@@ -257,8 +263,9 @@ time_series_plotting <- function(input
   
   # update frequency choice
   observeEvent({
-    input$value_type_1
-    input$value_type_2
+    # input$value_type_1
+    # input$value_type_2
+    frequency_vector()
   }, {
     req(frequency_vector())
     updateSelectizeInput(session, "frequency",

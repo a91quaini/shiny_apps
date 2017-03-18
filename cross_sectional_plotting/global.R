@@ -41,9 +41,10 @@ cross_sectional_plotting_ui <- function(id, module_header_text){
                        label = gettext("Value type for x-axis")),
 
         # selectizeInput (multiple) value type for y
-        selectizeInput(ns("value_types_y"), choices = NULL,
-                     label = gettext("(multiple) value types for y-axis"),
-                     multiple = TRUE),
+        # selectizeInput(ns("value_types_y"), choices = NULL,
+        #              label = gettext("(multiple) value types for y-axis"),
+        #              multiple = TRUE),
+        uiOutput(ns("value_types_y_selector")),
 
         # selectizeInput (single) frequency
         selectizeInput(ns("frequency"), choices = NULL,
@@ -98,35 +99,21 @@ cross_sectional_plotting_ui <- function(id, module_header_text){
 #### brushing per stat::qq non operativo
 
 
-ggplot_function <- function(dataframe, input_date, input_value_type_x, input_tags, id_brushed) {
+ggplot_function <- function(dataframe, input_date, input_tags, id_brushed) {
   data <- dataframe %>%
     dplyr::filter(date %in% base::as.Date(input_date))
-  
+
     if(!is.null(input_tags)) {
-      ggplot2::ggplot(data, ggplot2::aes(x = value_type_x, y = value_types_y, color = tag)) +
+      ggplot2::ggplot(data, ggplot2::aes(x = x, y = y, color = tag)) +
         ggplot2::geom_point() +
         ggplot2::geom_point(data = data %>% dplyr::filter(id %in% id_brushed), size = 4, shape= 2)
     } else {
-      ggplot2::ggplot(data, ggplot2::aes(x = value_type_x, y = value_types_y)) +
+      ggplot2::ggplot(data, ggplot2::aes(x = x, y = y)) +
         ggplot2::geom_point() +
         ggplot2::geom_point(data = data %>% dplyr::filter(id %in% id_brushed), size = 4, shape = 2)
     }
 }
 
-ggplot_qq <- function(dataframe, input_date, input_tags, id_brushed) {
-  data <- dataframe %>%
-    dplyr::filter(date %in% base::as.Date(input_date))
-  
-  if(!is.null(input_tags)) {
-    ggplot2::ggplot(data, ggplot2::aes(sample = value, color = tag)) +
-      ggplot2::stat_qq() +
-      ggplot2::stat_qq(data = data %>% dplyr::filter(id %in% id_brushed), size = 4, shape= 2)
-  } else {
-    ggplot2::ggplot(data, ggplot2::aes(sample = value)) +
-      ggplot2::stat_qq() +
-      ggplot2::stat_qq(data = data %>% dplyr::filter(id %in% id_brushed), size = 4, shape = 2)
-  }
-}
 
 
 cross_sectional_plotting <- function(input, output, session, time_series_data, tagging_data, value_type_line_type){
@@ -148,74 +135,97 @@ cross_sectional_plotting <- function(input, output, session, time_series_data, t
                          server = TRUE)
   })
   
-  value_types_vector <- reactiveValues(values_y = NULL)
-  observe({
-    try({
-      req(input$value_type_x)
-      value_types_vector$values_y <- value_type_vector()[value_type_vector() != input$value_type_x]
-    })
-  })
-
-  observeEvent(value_types_vector$values_y, {
-    updateSelectizeInput(session, "value_types_y",
-                         choices = value_types_vector$values_y,
-                         selected = value_types_vector$values_y[1],
-                         server = TRUE)
+  # select value type 2 (from all but value type 1)
+  value_types_y_vector <- reactive({
+    req(input$value_type_x)
+    value_type_vector()[value_type_vector() != input$value_type_x]
   })
   
-  # preparation dataframe for frequency vector
-  selected_value_types_dataframe <- eventReactive({
-    input$value_types_y
+  output$value_types_y_selector <- renderUI({
+    req(value_types_y_vector())
+    ifelse(input$value_type_x != "ranking", multiple_y <- TRUE, multiple_y <- FALSE)
+    
+    selectizeInput(ns("value_types_y"), gettext("Value types for y-axis"),
+                   choices = value_types_y_vector(),
+                   selected = value_types_y_vector()[1],
+                   multiple = multiple_y)
+  })
+  
+  observeEvent({
+    input$value_type_x
   }, {
     req(input$value_types_y)
+    value_types_y_selected <- if(isTruthy(input$value_types_y) & (input$value_types_y %in% value_types_y_vector())) {
+                              input$value_types_y
+                              } else {
+                              value_types_y_vector()[1]
+                              }
+    
+    updateSelectizeInput(session, "value_types_y",
+                         selected = value_types_y_selected)
+    
+  })
+  
+  # frequency vector responsive to previous choices
+  frequency_vector <- reactive({
+    req(input$value_types_y)
+    
     if(input$value_type_x != "Ranking") {
       time_series_data() %>%
         dplyr::filter(value_type %in% c(input$value_type_x, input$value_types_y)) %>%
-        tidyr::spread(key = value_type, value = value) %>% tidyr::drop_na()
+        tidyr::spread(key = value_type, value = value) %>% tidyr::drop_na() %>% 
+        dplyr::select(frequency) %>% dplyr::distinct() %>% .[[1]]
     } else { time_series_data() %>%
-        dplyr::filter(frequency %in% input$value_types_y)
+        dplyr::filter(frequency %in% input$value_types_y) %>% 
+        dplyr::select(frequency) %>% dplyr::distinct() %>% .[[1]]
     }
   })
   
-  # vector to choose frequency from
-  frequency_vector <- reactiveValues(freq = NULL)
-  observe({
-    try({
-      frequency_vector$freq <- selected_value_types_dataframe() %>%
-        dplyr::select(frequency) %>% dplyr::distinct() %>% .[[1]]
-    })
+  # frequency selected. If there is a selection, keep it except if it is not valid. If there
+  # is no selection, take the first element of frequency_vector
+  frequency_selected <- reactive({
+    req(frequency_vector())
+    if(isTruthy(input$frequency) & (input$frequency %in% frequency_vector())) {
+      input$frequency
+    } else {
+      frequency_vector()[1]
+    }
   })
   
   # update frequency choice
-  observeEvent(frequency_vector$freq, {
-    req(frequency_vector$freq)
+  observeEvent(frequency_vector(), {
+    
     updateSelectizeInput(session, "frequency",
-                         choices = frequency_vector$freq,
-                         selected = frequency_vector$freq[1],
+                         choices = frequency_vector(),
+                         selected = frequency_selected(),
                          server = TRUE)
   })
   
-  # preparation dataframe for dates
-  frequency_dataframe <- eventReactive(input$frequency, {
+  dates_vector <- reactive({
     req(input$frequency)
     time_series_data() %>%
-      dplyr::filter(frequency %in% input$frequency)
+      dplyr::filter(frequency %in% input$frequency) %>%
+      dplyr::select(date) %>% dplyr::distinct() %>% .[[1]]
   })
   
-  # vector of dates
-  date_vector <- reactiveValues(dates = NULL)
-  observe({
-    try({
-      date_vector$dates <- frequency_dataframe() %>%
-        dplyr::select(date) %>% dplyr::distinct() %>% .[[1]]
-    })
+  dates_selected <- reactive({
+    req(input$dates_input)
+
+    if_else(as.Date(input$dates_input) %in% dates_vector(),
+           as.Date(input$dates_input),
+           dates_vector()[1:3])
   })
   
   # selectize dates
-  observeEvent(date_vector$dates, {
-    req(date_vector$dates)
+  observeEvent(dates_vector(), {
+    req(dates_vector())
+    dates_select <- if(isTruthy(input$dates_input)) {
+      dates_selected()
+    } else {NULL}
+    
     updateSelectizeInput(session, "dates_input",
-                         choices = date_vector$dates,
+                         choices = dates_vector(),
+                         selected = dates_select,
                          server = TRUE)
   })
   
@@ -243,13 +253,17 @@ cross_sectional_plotting <- function(input, output, session, time_series_data, t
                       frequency %in% input$frequency,
                       date %in% base::as.Date(input$dates_input)) %>%
         tidyr::spread(key = value_type, value = value) %>%
-        tidyr::gather_(gather_cols = input$value_type_x, key_col = "useless_x", value_col = "value_type_x") %>%
-        tidyr::gather_(gather_cols = input$value_types_y, key_col = "useless_y", value_col = "value_types_y")
+        tidyr::gather_(gather_cols = input$value_type_x, key_col = "useless_x", value_col = "x") %>%
+        tidyr::gather_(gather_cols = input$value_types_y, key_col = "useless_y", value_col = "y")
     } else {
-      time_series_data() %>%
+      dataf <- time_series_data() %>%
         dplyr::filter(value_type %in% input$value_types_y,
                       frequency %in% input$frequency,
-                      date %in% base::as.Date(input$dates_input))
+                      date %in% base::as.Date(input$dates_input)) %>% 
+        dplyr::group_by(date) %>%
+        dplyr::mutate(x = dplyr::percent_rank(value)) %>% ungroup()
+      names(dataf)[names(dataf) == "value"] <- "y"
+      dataf
     }
     
     if(!is.null(input$tags)) {
@@ -263,13 +277,10 @@ cross_sectional_plotting <- function(input, output, session, time_series_data, t
   
   # plot at date 1
   output$cs_plot_1 <- renderPlot({
-    validate(need(input$dates_input, gettext("Date")))
+    req(input$value_type_x)
+    validate(need(input$dates_input, gettext("Date 1")))
     
-    if(input$value_type_x != "ranking") {
-      ggplot_function(plot_dataframe(), input$dates_input[1], input$value_type_x, input$tags, NULL)
-    } else {
-      ggplot_qq(plot_dataframe(), input$dates_input[1], input$tags, NULL)
-    }
+      ggplot_function(plot_dataframe(), input$dates_input[1], input$tags, NULL)
   })
   
   brushed_data <- reactive({
@@ -288,35 +299,27 @@ cross_sectional_plotting <- function(input, output, session, time_series_data, t
   # help text brushed series
   output$help_brushed_series <- renderUI({
     req(input$plot_brush)
-    helpText(gettext("Selected series"))
+    helpText(gettext("Brushed series"))
   })
   
   # text brushed series
   output$brushed_series <- renderText({
     req(input$plot_brush)
-    base::paste0(brushed_data() %>% select(name) %>% .[[1]])
+    base::paste0(brushed_data() %>% dplyr::select(name) %>% dplyr::distinct() %>% .[[1]])
   })
   
   # plot at date 2
   output$cs_plot_2 <- renderPlot({
-    req(plot_dataframe())
+    req(plot_dataframe(), input$value_type_x)
     validate(need(input$dates_input[2], gettext("Date 2")))
-    if(input$value_type_x != "ranking") {
-      ggplot_function(plot_dataframe(), input$dates_input[2], input$value_type_x, input$tags, id_brushed())
-    } else {
-      ggplot_qq(plot_dataframe(), input$dates_input[2], input$tags, id_brushed())
-    }
+      ggplot_function(plot_dataframe(), input$dates_input[2], input$tags, id_brushed())
   })
   
   # plot at date 3
   output$cs_plot_3 <- renderPlot({
-    req(plot_dataframe())
+    req(plot_dataframe(), input$value_type_x)
     validate(need(input$dates_input[3], gettext("Date 3")))
-    if(input$value_type_x != "ranking") {
-      ggplot_function(plot_dataframe(), input$dates_input[3], input$value_type_x, input$tags, id_brushed())
-    } else {
-      ggplot_qq(plot_dataframe(), input$dates_input[3], input$tags, id_brushed())
-    }
+      ggplot_function(plot_dataframe(), input$dates_input[3], input$tags, id_brushed())
   })
   
 }
