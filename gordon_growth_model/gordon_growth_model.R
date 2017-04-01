@@ -31,30 +31,52 @@ gordon_growth_model <- function(input, output, session, data, ...) {
     )
   })
   
-  data_plot <- reactive({
+  data_selected <- reactive({
+    
     req(input$stock_selected, input$date_selected)
     
-    data_plot <- data() %>%
+    data_selected <- data() %>%
       dplyr::filter(name %in% input$stock_selected,
         date %in% input$date_selected) %>%
       dplyr::select(data_type, value)
     
-    dps <- dFun(data_plot, 'dividend_per_share')
-    exp_ret <- dFun(data_plot, 'expected_return')
-    dgr <- dFun(data_plot, 'dividend_growth_rate')
-    g_range <- seq(0, .75 * exp_ret, by = .005)
-    price <- dFun(data_plot, 'price')
-    price <- rep(price, length(g_range))
-    impPrice <- gordonGrowth(dps, g_range, exp_ret)
+    D <- dFun(data_selected, 'dividend_per_share')
+    m <- dFun(data_selected, 'expected_return')
+    g <- dFun(data_selected, 'dividend_growth_rate')
+    P <- dFun(data_selected, 'price')
+    
+    data_selected <- c(D, m, g, P)
+    
+  })
+  
+  
+  output$text <- renderText({
+    req(input$stock_selected, input$date_selected)
+
+    str1 <- paste("Price: ", data_selected()[4])
+    str2 <- paste("Dividend growth rate: ", data_selected()[3])
+    str3 <- paste("Expected return:", data_selected()[2])
+
+    HTML(paste(str1, str2, str3, sep = "<br/>"))
+
+  })
+
+  
+  data_plot <- reactive({
+    req(input$stock_selected, input$date_selected)
+    
+    data_plot <- data_selected()
+    
+    g_range <- seq(0, .75 * data_plot[2], by = .005)
+    price <- rep(data_plot[4], length(g_range))
+    gordon_price <- gordonGrowth(D = data_plot[1], g = g_range, m = data_plot[2])
 
     data_plot <- tibble::tibble(
       growth = g_range,
       price = price,
-      implied_price = impPrice
+      gordon_price = gordon_price
     ) %>% 
       reshape2::melt(id.vars = c("growth"))
-    
-    data_plot
     
   })
   

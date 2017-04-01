@@ -8,14 +8,19 @@ gordon_growth_model_ui <- function(id, module_title) {
     
     fluidRow(
       
-      column(4, 
+      column(3, 
         uiOutput(ns('stock_selector')),
-        uiOutput(ns('date_selector'))
+        uiOutput(ns('date_selector')),
+        tags$br(),
+        htmlOutput(ns("text"))
+        # verbatimTextOutput(ns("text_p")),
+        # verbatimTextOutput(ns("text_g")),
+        # verbatimTextOutput(ns("text_m"))
+        
       ),
       
-      column(6, 
-        plotOutput(ns('plot')),
-        uiOutput(ns("text"))
+      column(7, 
+        plotOutput(ns('plot'))
       ),
       
       column(2,
