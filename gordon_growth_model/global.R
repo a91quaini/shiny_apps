@@ -9,8 +9,12 @@ gordonGrowth <- function(D, g, m) {
 }
 
 dFun <- function(data, dType) {
-  out <- data %>% dplyr::filter(data_type %in% dType) %>%
-    dplyr::select(value) %>% .[[1]]
+  if (nrow(data) == 0) {
+    return(NA)
+  } else {
+    out <- data %>% dplyr::filter(data_type %in% dType) %>%
+      dplyr::select(value) %>% .[[1]] 
+  }
 }
 
 ggPlot <- function(data) {

@@ -12,10 +12,10 @@ gordon_growth_model_ui <- function(id, module_title) {
         uiOutput(ns('stock_selector')),
         uiOutput(ns('date_selector')),
         tags$br(),
-        htmlOutput(ns("text"))
-        # verbatimTextOutput(ns("text_p")),
-        # verbatimTextOutput(ns("text_g")),
-        # verbatimTextOutput(ns("text_m"))
+        # htmlOutput(ns("text")),
+        verbatimTextOutput(ns("text_p")),
+        verbatimTextOutput(ns("text_g")),
+        verbatimTextOutput(ns("text_m"))
         
       ),
       
