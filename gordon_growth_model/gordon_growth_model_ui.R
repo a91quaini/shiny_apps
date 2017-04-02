@@ -24,7 +24,7 @@ gordon_growth_model_ui <- function(id, module_title) {
       ),
       
       column(2,
-        h5(tags$b('Gordon formula')),
+        h5(tags$b(gettext('Gordon formula'))),
         uiOutput(ns('equation'))
       )
       

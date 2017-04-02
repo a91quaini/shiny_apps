@@ -12,7 +12,7 @@ gordon_growth_model <- function(input, output, session, data, ...) {
     
     selectInput(
       ns('stock_selected'), 
-      label = 'Select stock:',
+      label = gettext('Select stock'),
       choices = stocks_vec
     )
   })
@@ -26,7 +26,7 @@ gordon_growth_model <- function(input, output, session, data, ...) {
     
     sliderInput(
       ns('date_selected'),
-      label = 'Select date:',
+      label = gettext('Select date'),
       min = min(date_vec),
       max = max(date_vec),
       value = max(date_vec)
@@ -38,10 +38,15 @@ gordon_growth_model <- function(input, output, session, data, ...) {
     
     req(input$stock_selected, input$date_selected) 
     
+    date_selected <- data() %>%
+      dplyr::select(date) %>%
+      dplyr::filter(date <= input$date_selected) %>%
+      .[[1]] %>% max()
+    
     data_selected <- data() %>%
       dplyr::filter(name %in% input$stock_selected,
-        date %in% input$date_selected)
-    
+                    date %in% date_selected)
+
     D <- dFun(data_selected, 'dividend_per_share')
     m <- dFun(data_selected, 'expected_return')
     g <- dFun(data_selected, 'dividend_growth_rate')
@@ -58,8 +63,6 @@ gordon_growth_model <- function(input, output, session, data, ...) {
     P <- data_selected()[4] %>%
       round(digits = 2)
     
-    if(is.na(P)) P <- "missing"
-    
     paste("P = ", P)
   })
   
@@ -70,8 +73,6 @@ gordon_growth_model <- function(input, output, session, data, ...) {
     g <- data_selected()[3] %>%
       round(digits = 2)
     
-    if(is.na(g)) g <- "missing"
-    
     paste("g = ", g)
   })
   
@@ -81,8 +82,6 @@ gordon_growth_model <- function(input, output, session, data, ...) {
     
     m <- data_selected()[2] %>%
       round(digits = 2)
-    
-    if(is.na(m)) m <- "missing"
     
     paste("m = ", m)
   })
@@ -107,10 +106,6 @@ gordon_growth_model <- function(input, output, session, data, ...) {
   # wide dataframe for plot
   data_plot <- reactive({
     req(input$stock_selected, input$date_selected)
-    
-    if (is.na(sum(data_selected()))) {
-      NULL
-    } else {
       
       data_plot <- data_selected()
       
@@ -125,16 +120,11 @@ gordon_growth_model <- function(input, output, session, data, ...) {
       ) %>% 
         reshape2::melt(id.vars = c("growth"))
       
-    }
   })
   
   # plot
   output$plot <- renderPlot({
-    if (is.null(data_plot())) {
-      return(NULL)
-    } else {
       ggPlot(data_plot())
-    }
   })
 
   

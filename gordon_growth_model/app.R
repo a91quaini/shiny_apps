@@ -1,7 +1,7 @@
 source("global.R")
 
 ui <- fluidPage(
-  gordon_growth_model_ui("gordon_growth_model", module_title = "Gordon growth model")
+  gordon_growth_model_ui("gordon_growth_model", module_title = gettext("Gordon growth model"))
 )
 
 server <- function(input, output) {
